@@ -16,7 +16,7 @@ import (
 )
 
 const authorizationHeaderName = "authorization"
-const ContextUserIdKey = "user-id"
+const ContextFirebaseIdKey = "firebase-id"
 const AuthorizationInterceptorName = "AuthorizationInterceptor"
 
 type authenticationConfig struct {
@@ -76,7 +76,7 @@ func (i *AuthorizationInterceptor) auth(ctx context.Context) (context.Context, e
 	}
 
 	ctx = logging.InjectFields(ctx, logging.Fields{"grpc.request.id", uuid.New().String()})
-	ctx = logging.InjectFields(ctx, logging.Fields{"user.user_id", resp.User.Id})
+	ctx = logging.InjectFields(ctx, logging.Fields{"user.firebase_id", resp.User.Id})
 
-	return context.WithValue(ctx, ContextUserIdKey, resp.User.Id), nil
+	return context.WithValue(ctx, ContextFirebaseIdKey, resp.User.Id), nil
 }
