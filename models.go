@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/gregmus2/poll-play-golang-core/interceptors"
+	"github.com/GregmusCo/poll-play-golang-core/interceptors"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 )

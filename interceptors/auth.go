@@ -2,9 +2,9 @@ package interceptors
 
 import (
 	"context"
+	"github.com/GregmusCo/poll-play-proto-gen/go/private"
 	"github.com/caarlos0/env"
 	"github.com/google/uuid"
-	"github.com/gregmus2/poll-play-proto-gen/go/private"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/metadata"

@@ -1,7 +1,7 @@
 package core
 
 import (
-	i "github.com/gregmus2/poll-play-golang-core/interceptors"
+	i "github.com/GregmusCo/poll-play-golang-core/interceptors"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	fxlogrus "github.com/takt-corp/fx-logrus"
