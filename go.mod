@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/google/uuid v1.6.0
-	github.com/gregmus2/poll-play-proto-gen v0.0.0-20240218074037-72f628f30af5
+	github.com/gregmus2/poll-play-proto-gen v0.0.13
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
