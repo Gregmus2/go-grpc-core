@@ -4,6 +4,8 @@ cloud.google.com/go/compute/metadata v0.2.3 h1:mg4jlk7mCAj6xXp9UJ4fjI9VUI5rubuGB
 cloud.google.com/go/compute/metadata v0.2.3/go.mod h1:VAV5nSsACxMJvgaAuX6Pk2AawlZn8kiOGuCv6gTkwuA=
 github.com/GregmusCo/poll-play-proto-gen v0.0.14 h1:WrvakraijJn2k/V2O0UO7CHU6dPDw/Kyrf2S7KH+ZGE=
 github.com/GregmusCo/poll-play-proto-gen v0.0.14/go.mod h1:mFhsFnrJX/33g9XFETdI3XmfWYWHe3wSUoW0giAdP68=
+github.com/GregmusCo/poll-play-proto-gen v0.0.16 h1:dFpLbZ1HOqy09EEUTt5/UGpZXH/wTMkI90poDiFbTAQ=
+github.com/GregmusCo/poll-play-proto-gen v0.0.16/go.mod h1:mFhsFnrJX/33g9XFETdI3XmfWYWHe3wSUoW0giAdP68=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=
 github.com/benbjohnson/clock v1.3.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/caarlos0/env v3.5.0+incompatible h1:Yy0UN8o9Wtr/jGHZDpCBLpNrzcFLLM2yixi/rBrKyJs=
