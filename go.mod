@@ -3,7 +3,7 @@ module github.com/GregmusCo/poll-play-golang-core
 go 1.21
 
 require (
-	github.com/GregmusCo/poll-play-proto-gen v0.0.16
+	github.com/GregmusCo/poll-play-proto-gen v0.0.18
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1

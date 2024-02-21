@@ -76,7 +76,7 @@ func (i *AuthorizationInterceptor) auth(ctx context.Context) (context.Context, e
 	}
 
 	ctx = logging.InjectFields(ctx, logging.Fields{"grpc.request.id", uuid.New().String()})
-	ctx = logging.InjectFields(ctx, logging.Fields{"user.firebase_id", resp.UserId})
+	ctx = logging.InjectFields(ctx, logging.Fields{"user.firebase_id", resp.GetFirebaseId()})
 
-	return context.WithValue(ctx, ContextFirebaseIdKey, resp.UserId), nil
+	return context.WithValue(ctx, ContextFirebaseIdKey, resp.GetFirebaseId()), nil
 }
