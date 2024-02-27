@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
+	"strconv"
 	"sync"
 )
 
@@ -22,7 +23,8 @@ func Serve(servers []Server, containerProvider fx.Option) {
 
 	wg := new(sync.WaitGroup)
 	wg.Add(len(servers))
-	for _, server := range servers {
+	for j, server := range servers {
+		index := j
 		localServer := server
 		services := make([]interface{}, 0, len(localServer.Services))
 		for _, service := range localServer.Services {
@@ -38,15 +40,15 @@ func Serve(servers []Server, containerProvider fx.Option) {
 		services = append(services, fx.Private)
 
 		options = append(options, fx.Module(
-			localServer.Port,
+			strconv.Itoa(j),
 			fx.Provide(services...),
-			fx.Invoke(func(services ServicesIn, logger *logrus.Entry) error {
+			fx.Invoke(func(services ServicesIn, logger *logrus.Entry, config *Config) error {
 				grpcServer, err := buildServer(localServer, logger, services.Services)
 				if err != nil {
 					return errors.Wrapf(err, "error on build server")
 				}
 
-				go runServer(logger, localServer.Port, grpcServer)
+				go runServer(logger, config.ListenAddress[index], grpcServer)
 
 				return nil
 			}),

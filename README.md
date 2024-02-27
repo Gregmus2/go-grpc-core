@@ -15,7 +15,6 @@ func main() {
 					{ServiceDesc: private.UserService_ServiceDesc, Constructor: presenters.NewPrivate},
 				},
 				Interceptors: nil,
-				Port:         ":9001",
 			},
 			// example of external server
 			{

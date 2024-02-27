@@ -12,7 +12,6 @@ type Server struct {
 	Services     []Service
 	Interceptors interceptors.Interceptors
 	Stream       bool
-	Port         string
 }
 
 type Service struct {
