@@ -54,9 +54,11 @@ func Serve(servers []Server, containerProvider fx.Option) {
 					return errors.Wrapf(err, "error on build server")
 				}
 
-				address := config.ListenAddress[index]
+				var address string
 				if len(addresses) > index {
 					address = addresses[index]
+				} else {
+					address = config.ListenAddress[index]
 				}
 				go runServer(logger, address, grpcServer)
 
