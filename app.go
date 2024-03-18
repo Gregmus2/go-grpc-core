@@ -10,11 +10,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 )
 
 func Serve(servers []Server, containerProvider fx.Option) {
+	var addresses []string
+	if len(os.Args) > 1 {
+		addresses = os.Args[1:]
+	}
+
 	options := []fx.Option{
 		provideBasicServices(),
 		containerProvider,
@@ -48,7 +54,11 @@ func Serve(servers []Server, containerProvider fx.Option) {
 					return errors.Wrapf(err, "error on build server")
 				}
 
-				go runServer(logger, config.ListenAddress[index], grpcServer)
+				address := config.ListenAddress[index]
+				if len(addresses) > index {
+					address = addresses[index]
+				}
+				go runServer(logger, address, grpcServer)
 
 				return nil
 			}),
