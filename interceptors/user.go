@@ -23,42 +23,44 @@ type UserInterceptor struct {
 	userClient private.UserServiceClient
 }
 
-func (i *UserInterceptor) Init() error {
-	cfg := new(userConfig)
+func (i UserInterceptor) GetConstructor() any {
+	return func() (*UserInterceptor, error) {
+		cfg := new(userConfig)
 
-	if err := env.Parse(cfg); err != nil {
-		return errors.Wrap(err, "error parsing required ENV config for initializing user interceptor")
+		if err := env.Parse(cfg); err != nil {
+			return nil, errors.Wrap(err, "error parsing required ENV config for initializing user interceptor")
+		}
+
+		cc, err := grpc.Dial(cfg.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, errors.Wrap(err, "error creating connection with user service")
+		}
+
+		return &UserInterceptor{
+			userClient: private.NewUserServiceClient(cc),
+		}, nil
 	}
-
-	cc, err := grpc.Dial(cfg.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return errors.Wrap(err, "error creating connection with user service")
-	}
-
-	i.userClient = private.NewUserServiceClient(cc)
-
-	return nil
 }
 
-func (i *UserInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
+func (i UserInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return auth.UnaryServerInterceptor(i.getUser)
 }
 
-func (i *UserInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
+func (i UserInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
 	return auth.StreamServerInterceptor(i.getUser)
 }
 
-func (i *UserInterceptor) Name() string {
+func (i UserInterceptor) Name() string {
 	return UserInterceptorName
 }
 
-func (i *UserInterceptor) DependsOn() []string {
+func (i UserInterceptor) DependsOn() []string {
 	return []string{
 		AuthorizationInterceptorName,
 	}
 }
 
-func (i *UserInterceptor) getUser(ctx context.Context) (context.Context, error) {
+func (i UserInterceptor) getUser(ctx context.Context) (context.Context, error) {
 	firebaseID := ctx.Value(ContextFirebaseIdKey).(string)
 	if firebaseID == "" {
 		panic("firebase id is missing in context")

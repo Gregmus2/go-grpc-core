@@ -24,3 +24,9 @@ type ServicesIn struct {
 
 	Services []protoService `group:"Services"`
 }
+
+type InterceptorsIn struct {
+	fx.In
+
+	Interceptors interceptors.Interceptors `group:"Interceptors"`
+}

@@ -8,12 +8,34 @@ import (
 	"google.golang.org/grpc"
 )
 
-func LogrusUnaryInterceptor(logger *logrus.Entry) grpc.UnaryServerInterceptor {
-	return logging.UnaryServerInterceptor(interceptorLogger(logger), buildLoggingOptions()...)
+const LoggerInterceptorName = "LoggerInterceptor"
+
+type LoggerInterceptor struct {
+	logger *logrus.Entry
 }
 
-func LogrusStreamInterceptor(logger *logrus.Entry) grpc.StreamServerInterceptor {
-	return logging.StreamServerInterceptor(interceptorLogger(logger), buildLoggingOptions()...)
+func (l LoggerInterceptor) Name() string {
+	return LoggerInterceptorName
+}
+
+func (l LoggerInterceptor) GetConstructor() any {
+	return func(logger *logrus.Entry) (*LoggerInterceptor, error) {
+		return &LoggerInterceptor{
+			logger: logger,
+		}, nil
+	}
+}
+
+func (l LoggerInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
+	return logging.UnaryServerInterceptor(interceptorLogger(l.logger), buildLoggingOptions()...)
+}
+
+func (l LoggerInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
+	return logging.StreamServerInterceptor(interceptorLogger(l.logger), buildLoggingOptions()...)
+}
+
+func (l LoggerInterceptor) DependsOn() []string {
+	return []string{}
 }
 
 func interceptorLogger(l logrus.FieldLogger) logging.Logger {

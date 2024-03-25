@@ -7,7 +7,7 @@ import (
 
 type Interceptor interface {
 	Name() string
-	Init() error
+	GetConstructor() any
 	UnaryInterceptor() grpc.UnaryServerInterceptor
 	StreamInterceptor() grpc.StreamServerInterceptor
 	DependsOn() []string
@@ -15,19 +15,30 @@ type Interceptor interface {
 
 type Interceptors []Interceptor
 
-func (i *Interceptors) Prepare() error {
+func (i *Interceptors) Sort() error {
 	var err error
 	*i, err = Sort(*i)
 	if err != nil {
 		return errors.Wrapf(err, "interceptor dependency error")
 	}
 
+	return nil
+}
+
+func (i *Interceptors) UnaryInterceptorsAsChain() grpc.ServerOption {
+	var interceptors []grpc.UnaryServerInterceptor
 	for _, interceptor := range *i {
-		err = interceptor.Init()
-		if err != nil {
-			return errors.Wrapf(err, "error on init interceptor %s", interceptor.Name())
-		}
+		interceptors = append(interceptors, interceptor.UnaryInterceptor())
 	}
 
-	return nil
+	return grpc.ChainUnaryInterceptor(interceptors...)
+}
+
+func (i *Interceptors) StreamInterceptorsAsChain() grpc.ServerOption {
+	var interceptors []grpc.StreamServerInterceptor
+	for _, interceptor := range *i {
+		interceptors = append(interceptors, interceptor.StreamInterceptor())
+	}
+
+	return grpc.ChainStreamInterceptor(interceptors...)
 }

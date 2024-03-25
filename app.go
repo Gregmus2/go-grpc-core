@@ -10,17 +10,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
-	"os"
 	"strconv"
 	"sync"
 )
 
 func Serve(servers []Server, containerProvider fx.Option) {
-	var addresses []string
-	if len(os.Args) > 1 {
-		addresses = os.Args[1:]
-	}
-
+	// provide services to DI container
 	options := []fx.Option{
 		provideBasicServices(),
 		containerProvider,
@@ -30,46 +25,79 @@ func Serve(servers []Server, containerProvider fx.Option) {
 	wg := new(sync.WaitGroup)
 	wg.Add(len(servers))
 	for j, server := range servers {
-		index := j
-		localServer := server
-		services := make([]interface{}, 0, len(localServer.Services))
-		for _, service := range localServer.Services {
-			services = append(services,
-				fx.Annotate(
-					service.Constructor,
-					fx.As(new(protoService)),
-					fx.ResultTags(`group:"Services"`),
-				),
-			)
-		}
-		// to encapsulate services in server module
-		services = append(services, fx.Private)
-
-		options = append(options, fx.Module(
-			strconv.Itoa(j),
-			fx.Provide(services...),
-			fx.Invoke(func(services ServicesIn, logger *logrus.Entry, config *Config) error {
-				grpcServer, err := buildServer(localServer, logger, services.Services)
-				if err != nil {
-					return errors.Wrapf(err, "error on build server")
-				}
-
-				var address string
-				if len(addresses) > index {
-					address = addresses[index]
-				} else {
-					address = config.ListenAddress[index]
-				}
-				go runServer(logger, address, grpcServer)
-
-				return nil
-			}),
-		))
+		protoServices := buildProtoServicesInjection(server)
+		interceptors := buildInterceptorsInjection(server)
+		module := buildServerModule(j, protoServices, interceptors, server, j)
+		options = append(options, module)
 	}
 
 	options = append(options, fx.Invoke(wg.Wait))
 
 	fx.New(options...).Run()
+}
+
+func buildServerModule(j int, protoServices []interface{}, interceptors []interface{}, server Server, index int) fx.Option {
+	return fx.Module(
+		strconv.Itoa(j),
+		fx.Provide(protoServices...),
+		fx.Provide(interceptors...),
+		fx.Invoke(buildRunServerFunction(server, index)),
+	)
+}
+
+func buildRunServerFunction(server Server, index int) any {
+	return func(protoServicesIn ServicesIn, interceptorsIn InterceptorsIn, logger *logrus.Entry, config *Config) error {
+		grpcServer, err := buildServer(server, protoServicesIn.Services, interceptorsIn.Interceptors)
+		if err != nil {
+			return errors.Wrapf(err, "error on build server")
+		}
+
+		go runServer(logger, config.ListenAddress[index], grpcServer)
+
+		return nil
+	}
+}
+
+func buildProtoServicesInjection(server Server) []interface{} {
+	protoServices := make([]interface{}, 0, len(server.Services))
+	for _, service := range server.Services {
+		protoServices = append(protoServices,
+			fx.Annotate(
+				service.Constructor,
+				fx.As(new(protoService)),
+				fx.ResultTags(`group:"Services"`),
+			),
+		)
+	}
+	// to encapsulate protoServices in server module
+	protoServices = append(protoServices, fx.Private)
+
+	return protoServices
+}
+
+func buildInterceptorsInjection(server Server) []interface{} {
+	interceptors := make([]interface{}, 0, len(server.Interceptors))
+	for _, interceptor := range append(server.Interceptors, basicInterceptors()...) {
+		interceptors = append(interceptors,
+			fx.Annotate(
+				interceptor.GetConstructor(),
+				fx.As(new(i.Interceptor)),
+				fx.ResultTags(`group:"Interceptors"`),
+			),
+		)
+	}
+	// to encapsulate interceptors in server module
+	interceptors = append(interceptors, fx.Private)
+
+	return interceptors
+}
+
+func basicInterceptors() []i.Interceptor {
+	return []i.Interceptor{
+		i.LoggerInterceptor{},
+		i.RequestValidationInterceptor{},
+		i.ErrorHandlingInterceptor{},
+	}
 }
 
 func fxLogger() fx.Option {
@@ -78,58 +106,28 @@ func fxLogger() fx.Option {
 	})
 }
 
-func buildServer(server Server, logger *logrus.Entry, services []protoService) (*grpc.Server, error) {
+func buildServer(server Server, services []protoService, interceptors i.Interceptors) (*grpc.Server, error) {
+	err := interceptors.Sort()
+	if err != nil {
+		return nil, errors.Wrapf(err, "error sorting interceptors")
+	}
+
 	serverOptions := make([]grpc.ServerOption, 0)
-
-	err := server.Interceptors.Prepare()
-	if err != nil {
-		return nil, errors.Wrapf(err, "error on prepare interceptors")
-	}
-
-	unaryInterceptors, err := buildUnaryInterceptors(logger, server.Interceptors)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error on build unary interceptors")
-	}
-	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(unaryInterceptors...))
-
+	serverOptions = append(serverOptions, interceptors.UnaryInterceptorsAsChain())
 	if server.Stream {
-		streamInterceptors, err := buildStreamInterceptors(logger, server.Interceptors)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error on build stream interceptors")
-		}
-		serverOptions = append(serverOptions, grpc.ChainStreamInterceptor(streamInterceptors...))
+		serverOptions = append(serverOptions, interceptors.StreamInterceptorsAsChain())
 	}
-
 	s := grpc.NewServer(serverOptions...)
+
+	// register proto reflection service
 	reflection.Register(s)
 
+	// register proto services
 	for j, service := range server.Services {
 		s.RegisterService(&service.ServiceDesc, services[j])
 	}
 
 	return s, nil
-}
-
-func buildUnaryInterceptors(logger *logrus.Entry, interceptors i.Interceptors) ([]grpc.UnaryServerInterceptor, error) {
-	basicInterceptors := basicUnaryInterceptors(logger)
-	unaryInterceptors := make([]grpc.UnaryServerInterceptor, 0, len(interceptors)+len(basicInterceptors))
-
-	for _, interceptor := range interceptors {
-		unaryInterceptors = append(unaryInterceptors, interceptor.UnaryInterceptor())
-	}
-
-	return append(unaryInterceptors, basicInterceptors...), nil
-}
-
-func buildStreamInterceptors(logger *logrus.Entry, interceptors i.Interceptors) ([]grpc.StreamServerInterceptor, error) {
-	basicInterceptors := basicStreamInterceptors(logger)
-	streamInterceptors := make([]grpc.StreamServerInterceptor, 0, len(interceptors)+len(basicInterceptors))
-
-	for _, interceptor := range interceptors {
-		streamInterceptors = append(streamInterceptors, interceptor.StreamInterceptor())
-	}
-
-	return append(streamInterceptors, basicInterceptors...), nil
 }
 
 func provideBasicServices() fx.Option {
@@ -140,18 +138,6 @@ func provideBasicServices() fx.Option {
 		NewLogrusEntry,
 		NewConfig,
 	)
-}
-
-func basicUnaryInterceptors(logger *logrus.Entry) []grpc.UnaryServerInterceptor {
-	return []grpc.UnaryServerInterceptor{
-		i.LogrusUnaryInterceptor(logger),
-	}
-}
-
-func basicStreamInterceptors(logger *logrus.Entry) []grpc.StreamServerInterceptor {
-	return []grpc.StreamServerInterceptor{
-		i.LogrusStreamInterceptor(logger),
-	}
 }
 
 func runServer(logger *logrus.Entry, address string, server *grpc.Server) {

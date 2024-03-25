@@ -27,40 +27,42 @@ type AuthorizationInterceptor struct {
 	userClient private.UserServiceClient
 }
 
-func (i *AuthorizationInterceptor) Init() error {
-	cfg := new(authenticationConfig)
+func (i AuthorizationInterceptor) GetConstructor() any {
+	return func() (*AuthorizationInterceptor, error) {
+		cfg := new(authenticationConfig)
 
-	if err := env.Parse(cfg); err != nil {
-		return errors.Wrap(err, "error parsing required ENV config for initializing authorization interceptor")
+		if err := env.Parse(cfg); err != nil {
+			return nil, errors.Wrap(err, "error parsing required ENV config for initializing authorization interceptor")
+		}
+
+		cc, err := grpc.Dial(cfg.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, errors.Wrap(err, "error creating connection with authorization service")
+		}
+
+		return &AuthorizationInterceptor{
+			userClient: private.NewUserServiceClient(cc),
+		}, nil
 	}
-
-	cc, err := grpc.Dial(cfg.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return errors.Wrap(err, "error creating connection with authorization service")
-	}
-
-	i.userClient = private.NewUserServiceClient(cc)
-
-	return nil
 }
 
-func (i *AuthorizationInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
+func (i AuthorizationInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return auth.UnaryServerInterceptor(i.auth)
 }
 
-func (i *AuthorizationInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
+func (i AuthorizationInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
 	return auth.StreamServerInterceptor(i.auth)
 }
 
-func (i *AuthorizationInterceptor) Name() string {
+func (i AuthorizationInterceptor) Name() string {
 	return AuthorizationInterceptorName
 }
 
-func (i *AuthorizationInterceptor) DependsOn() []string {
+func (i AuthorizationInterceptor) DependsOn() []string {
 	return []string{}
 }
 
-func (i *AuthorizationInterceptor) auth(ctx context.Context) (context.Context, error) {
+func (i AuthorizationInterceptor) auth(ctx context.Context) (context.Context, error) {
 	token := metadata.ExtractIncoming(ctx).Get(authorizationHeaderName)
 	if token == "" {
 		return nil, status.Error(codes.Unauthenticated, "authorization token is required")
