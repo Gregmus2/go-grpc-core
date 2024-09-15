@@ -22,7 +22,7 @@ func main() {
 					{ServiceDesc: public.UserService_ServiceDesc, Constructor: presenters.NewPublic},
 				},
 				Interceptors: []interceptors.Interceptor{
-					&interceptors.AuthorizationInterceptor{},
+					&MyOwnInterceptor{},
 				},
 				Port: ":9000",
 			},

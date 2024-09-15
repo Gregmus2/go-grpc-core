@@ -1,4 +1,4 @@
-module github.com/GregmusCo/poll-play-golang-core
+module github.com/Gregmus2/go-grpc-core
 
 go 1.21
 
