@@ -1,3 +1,9 @@
+## About
+
+Core component for Golang applications with GRPC server.
+Can be expanded with interceptors.
+By default it runs grpc server with specified protobuf services
+
 ## Example of usage
 
 ### Standard usage
