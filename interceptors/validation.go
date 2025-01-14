@@ -47,5 +47,7 @@ func (i RequestValidationInterceptor) UnaryInterceptor() grpc.UnaryServerInterce
 }
 
 func (i RequestValidationInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
-	return nil
+	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		return handler(srv, ss)
+	}
 }
