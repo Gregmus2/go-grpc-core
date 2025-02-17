@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/tls"
 	i "github.com/Gregmus2/go-grpc-core/interceptors"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -8,6 +9,7 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"net"
 	"strconv"
@@ -47,7 +49,7 @@ func buildServerModule(j int, protoServices []interface{}, interceptors []interf
 
 func buildRunServerFunction(server Server, index int) any {
 	return func(protoServicesIn ServicesIn, interceptorsIn InterceptorsIn, logger *logrus.Entry, config *Config) error {
-		grpcServer, err := buildServer(server, protoServicesIn.Services, interceptorsIn.Interceptors)
+		grpcServer, err := buildServer(server, protoServicesIn.Services, interceptorsIn.Interceptors, config.TLS)
 		if err != nil {
 			return errors.Wrapf(err, "error on build server")
 		}
@@ -106,7 +108,21 @@ func fxLogger() fx.Option {
 	})
 }
 
-func buildServer(server Server, services []protoService, interceptors i.Interceptors) (*grpc.Server, error) {
+func loadTLSCredentials(certificate TLS) (credentials.TransportCredentials, error) {
+	serverCert, err := tls.LoadX509KeyPair(certificate.Certificate, certificate.CertificateKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't load certificate")
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.NoClientCert,
+	}
+
+	return credentials.NewTLS(config), nil
+}
+
+func buildServer(server Server, services []protoService, interceptors i.Interceptors, tls TLS) (*grpc.Server, error) {
 	err := interceptors.Sort()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error sorting interceptors")
@@ -116,6 +132,13 @@ func buildServer(server Server, services []protoService, interceptors i.Intercep
 	serverOptions = append(serverOptions, interceptors.UnaryInterceptorsAsChain())
 	if server.Stream {
 		serverOptions = append(serverOptions, interceptors.StreamInterceptorsAsChain())
+	}
+	if tls.Certificate != "" && tls.CertificateKey != "" {
+		creds, err := loadTLSCredentials(tls)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error loading tls credentials")
+		}
+		serverOptions = append(serverOptions, grpc.Creds(creds))
 	}
 	s := grpc.NewServer(serverOptions...)
 
