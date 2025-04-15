@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"net"
+	"reflect"
 	"strconv"
 	"sync"
 )
@@ -146,8 +147,12 @@ func buildServer(server Server, services []protoService, interceptors i.Intercep
 	reflection.Register(s)
 
 	// register proto services
-	for j, service := range server.Services {
-		s.RegisterService(&service.ServiceDesc, services[j])
+	for _, serviceHandler := range services {
+		for _, service := range server.Services {
+			if reflect.TypeOf(serviceHandler).Implements(reflect.TypeOf(service.ServiceDesc.HandlerType).Elem()) {
+				s.RegisterService(&service.ServiceDesc, serviceHandler)
+			}
+		}
 	}
 
 	return s, nil
